@@ -1,0 +1,23 @@
+{
+  "name": "boilerpress-route-sequelize",
+  "version": "1.0.0",
+  "description": "Express auto routes for sequelize",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewgbliss/boilerpress-route-sequelize.git"
+  },
+  "author": "Andrew Bliss",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/andrewgbliss/boilerpress-route-sequelize/issues"
+  },
+  "homepage": "https://github.com/andrewgbliss/boilerpress-route-sequelize#readme",
+  "dependencies": {
+    "express": "^4.16.3",
+    "lodash": "^4.17.10"
+  }
+}
