@@ -46,6 +46,19 @@ const getOptions = (req) => {
       options.attributes = _.map(queryAttributes.split(','), _.trim);
     }
   }
+  const excludeAttributes = _.get(req, 'resourceOptions.exclude');
+  if (_.isString(excludeAttributes)) {
+    const exclude = _.map(excludeAttributes.split(','), _.trim);
+    if (!options.attributes || options.attributes.length === 0) {
+      options.attributes = {
+        exclude,
+      }
+    } else {
+      options.attributes =_.filter(options.attributes, i => {
+        return _.indexOf(exclude, i) === -1;
+      });
+    }
+  }
   if (req.method === 'GET') {
     options.limit = 100;
     if (req.query.page) {
@@ -225,41 +238,6 @@ const del = async (req, res, next) => {
 };
 
 /**
- * GET /:modelName/:id/:modelNameChild
- *
- * Get all of child records from the model associations. Limits to 100 per page.
- * @param {*} req
- * @param {*} res
- * @param {*} next
- */
-const getAllChildren = async (req, res, next) => {
-  try {
-    const { model, modelChild, resourceId } = req;
-    const childOptions = getOptions(req);
-    const options = {
-      include: [
-        {
-          model: modelChild,
-          separate: false,
-          ...childOptions.options,
-        },
-      ],
-      where: {
-        id: resourceId,
-      },
-      ...childOptions.options,
-    };
-    const results = await model.findAll(options);
-    res.json({
-      page: childOptions.page,
-      results,
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
  * Finds the model from /:modelName
  * @param {*} req
  * @param {*} res
@@ -269,22 +247,6 @@ const getAllChildren = async (req, res, next) => {
 const findModel = (req, res, next, modelName) => {
   req.modelName = modelName;
   req.model = _.get(req.options.models, modelName);
-  if (!req.model) {
-    return next(new Error('Resource not found'));
-  }
-  return next();
-};
-
-/**
- * Finds the model from /:modelName/:id/:modelNameChild
- * @param {*} req
- * @param {*} res
- * @param {*} next
- * @param {*} modelNameChild
- */
-const findModelChild = (req, res, next, modelNameChild) => {
-  req.modelNameChild = modelNameChild;
-  req.modelChild = _.get(req.options.models, modelNameChild);
   if (!req.model) {
     return next(new Error('Resource not found'));
   }
@@ -314,10 +276,12 @@ const findResourceById = async (req, res, next, id) => {
 };
 
 router.param('modelName', findModel);
-router.param('modelNameChild', findModelChild);
 router.param('id', findResourceById);
 
 module.exports = options => {
+  if (!options) {
+    throw new Error('Require options, models and resources');
+  }
   if (!options.models) {
     throw new Error('Required models in options');
   }
@@ -340,9 +304,5 @@ module.exports = options => {
     .put(put)
     .patch(patch)
     .delete(del);
-  router
-    .route('/:modelName/:id/:modelNameChild')
-    .all(isAllowed)
-    .get(getAllChildren);
   return router;
 };
