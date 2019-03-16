@@ -45,7 +45,7 @@ Data Structure:
 ## Example url
 
 ```
-http://localhost:3000/api/v1/users?attributes=id,accountId&where={"id":3}&include=[{"model":"accounts", "attributes": ["id","name"], "where":{"id":1}}]&order=[["id", "desc"]]
+http://localhost:3000/api/v1/users?attributes=id,accountId&where={"id":3}&order=[["id", "desc"]]
 ```
 
 
