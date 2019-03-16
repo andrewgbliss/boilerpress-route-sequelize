@@ -7,16 +7,7 @@ npm install --save boilerpress-route-sequelize
 
 ## Restful API Design
 
-We will be using these techonologies.
-
-* Node.js
-* Express.js
-* Sequelize.js
-* Postgres
-
-Our requirements:
-
-Create a docker container that runs an express server. The server will create resource endpoints that create and return relational data in a Postgres database. It will be authenticated with a jwt, have caching, middleware, and have one config file.
+Creates restful routes based on your sequelize models.
 
 Data Structure:
 
@@ -24,6 +15,30 @@ Data Structure:
 {
   prefix: '/api/v1',
   models, // The object of all sequelize models
+  use(req, res, next) {
+
+    // Put any middleware requirements you need here
+    if (
+      req.headers['x-service-token'] &&
+      req.headers['x-service-token'] === 'abc123'
+    ) {
+      return next();
+    }
+
+    // Lock down any records that belong to the logged in user
+    if (req.bp.childModelName) {
+      req.bp.childSequelizeOptions.where = {
+        ...get(req, 'bp.childSequelizeOptions.where', {}),
+        [req.bp.childModelName === 'accounts' ? 'id' : 'accountId']: req.user.account.id,
+      };
+    } else {
+      req.bp.sequelizeOptions.where = {
+        ...get(req, 'bp.sequelizeOptions.where', {}),
+        [req.bp.modelName === 'accounts' ? 'id' : 'accountId']: req.user.account.id,
+      };
+    }
+    return next();
+  },
 }
 ```
 
