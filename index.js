@@ -1,308 +1,57 @@
-const _ = require('lodash');
 const express = require('express');
+const requireDir = require('require-dir');
+const path = require('path');
 const router = express.Router();
+const methods = requireDir(path.join(__dirname, 'methods'));
+const utils = requireDir(path.join(__dirname, 'utils'));
 
-/**
- * Checks to see if the route is allowed
- * @param {*} req 
- * @param {*} res 
- * @param {*} next 
- */
-const isAllowed = (req, res, next) => {
-  const resourceMethods = _.get(req.options.resources, req.modelName);
-  if (resourceMethods) {
-    let method = _.lowerCase(req.method);
-    if (_.get(req.url.split('?'), '0') === `/${req.modelName}`) {
-      method = 'index';
-    }
-    req.resourceOptions = _.get(resourceMethods, method);
-    if (!req.resourceOptions) {
-      return next(new Error(`Route not allowed`));
-    }
-    return next();
-  }
-  return next(new Error('Route not allowed'));
-}
-
-/**
- * Get options to use within sequelize
- * @param {*} req 
- */
-const getOptions = (req) => {
-  let page = 1;
-  const options = {};
-  const attributes = _.get(req, 'resourceOptions.attributes');
-  if (_.isString(attributes)) {
-    options.attributes = _.map(attributes.split(','), _.trim);
-  }
-  const queryAttributes = _.get(req, 'query.attributes');
-  if (_.isString(queryAttributes)) {
-    if (options.attributes) {
-      options.attributes = _.intersection(
-        _.map(queryAttributes.split(','), _.trim),
-        options.attributes
-      );
-    } else {
-      options.attributes = _.map(queryAttributes.split(','), _.trim);
-    }
-  }
-  const excludeAttributes = _.get(req, 'resourceOptions.exclude');
-  if (_.isString(excludeAttributes)) {
-    const exclude = _.map(excludeAttributes.split(','), _.trim);
-    if (!options.attributes || options.attributes.length === 0) {
-      options.attributes = {
-        exclude,
-      }
-    } else {
-      options.attributes =_.filter(options.attributes, i => {
-        return _.indexOf(exclude, i) === -1;
-      });
-    }
-  }
-  if (req.method === 'GET') {
-    options.limit = 100;
-    if (req.query.page) {
-      page = Number(_.get(req.query, 'page', 1));
-      options.offset = page === 0 || page === 1 ? 0 : (page - 1) * 100;
-    }
-    if (req.query.filters) {
-      const filters = _.attempt(JSON.parse, req.query.filters);
-      if (!_.isError(filters)) {
-        options.where = filters;
-      }
-    }
-    if (req.query.order) {
-      const order = _.attempt(JSON.parse, req.query.order);
-      if (!_.isError(order)) {
-        options.order = order;
-      }
-    }
-  }
-  return {
-    page,
-    options,
-  };
-}
-
-/**
- * Get the data needed to create, or update the resource
- * @param {*} req 
- */
-const getData = (req) => {
-  let data = req.body;
-  let attributes = _.get(req, 'resourceOptions.attributes');
-  if (_.isString(attributes)) {
-    attributes = _.map(attributes.split(','), _.trim);
-    data = _.pick(data, attributes);
-  }
-  return data;
-}
-
-/**
- * GET /:modelName/
- *
- * Get all of records from the model. Limits to 100 per page.
- * @param {*} req
- * @param {*} res
- * @param {*} next
- */
-const getAll = async (req, res, next) => {
-  try {
-    const { model } = req;
-    const { options, page } = getOptions(req);
-    const results = await model.findAll(options);
-    res.json({
-      page,
-      results,
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
- * GET /:modelName/:id
- *
- * Gets one resource specified with /:id
- * @param {*} req
- * @param {*} res
- * @param {*} next
- */
-const get = async (req, res, next) => {
-  const { model } = req;
-  try {
-    const { options } = getOptions(req);
-    const resource = await model.findById(req.resourceId, options);
-    if (!resource) {
-      throw new Error('Resource not found');
-    }
-    res.json(resource);
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
- * POST /:modelName
- *
- * Create a resource
- * @param {*} req
- * @param {*} res
- * @param {*} next
- */
-const post = async (req, res, next) => {
-  const { model } = req;
-  try {
-    const data = getData(req);
-    const results = await model.create(data);
-    res.json({
-      results,
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
- * PUT /:modelName/:id
- *
- * Update a resource
- * @param {*} req
- * @param {*} res
- * @param {*} next
- */
-const put = async (req, res, next) => {
-  const { model } = req;
-  try {
-    const data = getData(req);
-    const results = await model.update(data, {
-      where: {
-        id: req.resourceId,
-      },
-    });
-    res.json({
-      results,
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
- * PATCH /:modelName/:id
- *
- * Update a resource
- * @param {*} req
- * @param {*} res
- * @param {*} next
- */
-const patch = async (req, res, next) => {
-  const { model } = req;
-  try {
-    const data = getData(req);
-    const results = await model.update(data, {
-      where: {
-        id: req.resourceId,
-      },
-    });
-    res.json({
-      results,
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
- * DELETE /:modelName/:id
- *
- * Delete a resource
- * @param {*} req
- * @param {*} res
- * @param {*} next
- */
-const del = async (req, res, next) => {
-  const { model } = req;
-  try {
-    const results = await model.destroy({
-      where: {
-        id: req.resourceId,
-      },
-    });
-    res.json({
-      results,
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
- * Finds the model from /:modelName
- * @param {*} req
- * @param {*} res
- * @param {*} next
- * @param {*} modelName
- */
-const findModel = (req, res, next, modelName) => {
-  req.modelName = modelName;
-  req.model = _.get(req.options.models, modelName);
-  if (!req.model) {
-    return next(new Error('Resource not found'));
-  }
-  return next();
-};
-
-/**
- * Finds the resource from /:modelName/:id
- * @param {*} req
- * @param {*} res
- * @param {*} next
- * @param {*} id
- */
-const findResourceById = async (req, res, next, id) => {
-  const { model } = req;
-  req.resourceId = id;
-  try {
-    const { options } = getOptions(req);
-    req.resource = await model.findById(id, options);
-    if (!req.resource) {
-      next(new Error('Resource not found'));
-    }
-    next();
-  } catch (e) {
-    next(e);
-  }
-};
-
-router.param('modelName', findModel);
-router.param('id', findResourceById);
-
-module.exports = options => {
-  if (!options) {
-    throw new Error('Require options, models and resources');
-  }
+module.exports = (options = {}) => {
   if (!options.models) {
     throw new Error('Required models in options');
   }
-  if (!options.resources) {
-    throw new Error('Required resources in options');
-  }
   router.use((req, res, next) => {
-    req.options = options;
+    req.bp = {
+      options,
+      sequelizeOptions: {},
+      childSequelizeOptions: {},
+      resourceId: null,
+      modelName: null,
+      model: null,
+      childResourceId: null,
+      childModelName: null,
+      childModel: null,
+    };
     return next();
   });
+  router.param('modelName', utils.findModel);
+  router.param('resourceId', utils.findResourceId);
+  router.param('childModelName', utils.findChildModel);
+  router.param('childResourceId', utils.findChildResourceId);
   router
-    .route('/:modelName')
-    .all(isAllowed)
-    .get(getAll)
-    .post(post);
+    .route(options.prefix + '/:modelName')
+    .all(utils.sequelizeOptions)
+    .all(options.use ? options.use : (req, res, next) => next())
+    .get(methods.index)
+    .post(methods.post);
   router
-    .route('/:modelName/:id')
-    .all(isAllowed)
-    .get(get)
-    .put(put)
-    .patch(patch)
-    .delete(del);
+    .route(options.prefix + '/:modelName/:resourceId')
+    .all(utils.sequelizeOptions)
+    .all(options.use ? options.use : (req, res, next) => next())
+    .get(methods.get)
+    .put(methods.put)
+    .patch(methods.patch)
+    .delete(methods.delete);
+  router
+    .route(options.prefix + '/:modelName/:resourceId/:childModelName')
+    .all(utils.sequelizeOptions)
+    .all(utils.childSequelizeOptions)
+    .all(options.use ? options.use : (req, res, next) => next())
+    .get(methods.getChildren);
+  router
+    .route(options.prefix + '/:modelName/:resourceId/:childModelName/:childResourceId')
+    .all(utils.sequelizeOptions)
+    .all(utils.childSequelizeOptions)
+    .all(options.use ? options.use : (req, res, next) => next())
+    .get(methods.getChild);
   return router;
 };

@@ -2,15 +2,6 @@ const { expect } = require('chai');
 const Router = require('../index');
 
 describe('boilerpress-routes-sequelize', () => {
-  it('should test for default state', () => {
-    try {
-      Router();
-    } catch (e) {
-      expect(e.message).to.equal(
-        'Require options, models and resources'
-      );
-    }
-  });
   it('should test for models', () => {
     try {
       Router({});

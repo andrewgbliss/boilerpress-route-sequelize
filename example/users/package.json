@@ -1,0 +1,24 @@
+{
+  "name": "users",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha",
+    "start": "node /usr/src/app/index.js",
+    "dev": "nodemon --config /usr/src/app/nodemon.json /usr/src/app/index.js",
+    "sequelize": "sequelize"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "boilerpress": "^1.1.0",
+    "boilerpress-route-loader": "^1.2.0",
+    "pg": "^7.8.1",
+    "sequelize": "^4.42.0",
+    "sequelize-cli": "^5.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.18.10"
+  }
+}
